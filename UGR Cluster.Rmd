@@ -1,0 +1,150 @@
+---
+title: "UGR Multivariante Cluster"
+author: "franmarq@gmail.com"
+date: '2022-12-15'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(cluster)
+library(purrr)
+library(factoextra)
+```
+
+lectura de la data
+
+```{r data}
+data<-read.csv("datos_culturales2.csv",header = T)
+names (data)[1] = "comunidad"
+```
+Calculamos la matriz de distancias, utilizando la distancia eucl´ıdea y aplicamos el
+algoritmo de cluster jer´arquico sobre ella para despu´es utilizar la funci´on plot y obtener
+el dendrograma correspondiente.
+
+```{r data2}
+str(data)
+
+```
+
+
+
+
+
+the agglomeration method to be used. This should be (an unambiguous abbreviation of) one of 
+
+"ward.D", # ward
+"single", #vecino cercano
+"complete", #vecino lejano
+"average" (= UPGMA) #media ponderada
+"centroid" (= UPGMC). #centroide
+
+
+```{r distancias}
+row.names(data)<-as.character(data$comunidad)
+distancia<-dist(data)
+
+jerarbas<-hclust(distancia, method = "complete")
+plot(jerarbas)
+rect.hclust(jerarbas, k = 3, border = 3:5)
+```
+
+
+Segun este primer resultado, parece haber tres grupos naturales; 
+el primero: Baleares, Canarias, Cantabria, Madrid, Murcia, Rioja.
+El segundo: Andalucia, Asturias, CastillaLaMancha,Cataluña,Valencia,Extremadura y CeutayMelilla.
+el tercero: Aragón, Castilla y Leon, Galicia, Pais Vasco.
+
+Si utilizamos la funci´on cutree el ´arbol se corta para formar el n´umero de grupos
+deseado, que en este caso será 3
+
+
+```{r arbol}
+arbol3<-cutree(jerarbas, k=3, h=NULL)
+arbol3
+
+plot(jerarbas)
+abline(h = 18, col = "red")
+
+```
+
+calcular el coeficiente de correlaci´on cofen´etico utilizamos
+
+```{r coefcofe}
+cor(distancia, cophenetic(jerarbas))
+```
+
+Ahora calculamos otros metodos de agrupamiento:
+
+
+```{r metagrup}
+jeraravg<-hclust(distancia, method = "average")
+jerarsin<-hclust(distancia, method = "single")
+jerarwar<-hclust(distancia, method = "ward")
+
+# vector de metodos para comparar
+m <- c( "average", "single", "ward")
+#m <- c( jeraravg, jerarsin, jerarwar)
+names(m) <- c( "average", "single", "ward")
+ 
+# function to compute coefficient
+print ('Promedio')
+ac1 <-  cor(distancia, cophenetic(jeraravg))
+ac1
+print ('Simple')
+ac2 <-  cor(distancia, cophenetic(jerarsin))
+ac2
+print ('Ward')
+ac3 <-  cor(distancia, cophenetic(jerarwar))
+ac3
+```
+
+El método de los promedios  nos da el coeficiente de aglomeración más alto. Veamos su dendograma utilizando el paquete agnes.
+
+```{r dendoward}
+jerarbas2<-hclust(distancia, method = "average")
+plot(jerarbas2)
+rect.hclust(jerarbas2, k = 3, border = 3:5)
+```
+
+
+
+
+#### m´etodo de las k-medias b´asico
+
+```{r kmedias}
+data2<-data[,-1]
+res.km <- kmeans(data2,centers=3,nstart=25)
+res.km
+
+#res.km$cluster
+```
+
+
+
+
+```{r plotkmeans}
+fviz_cluster(res.km, data = data2,
+             palette = c("#2E9FDF", "#00AFBB", "#E7B800"), 
+             ellipse.type = "convex", 
+             ggtheme = theme_bw()
+             )
+
+
+```
+
+
+#######
+
+# vector de metodos para comparar
+m <- c( "average", "single", "ward","complete")
+names(m) <- c( "average", "single", "ward","complete")
+ 
+# function to compute coefficient
+ac <- function(x) {
+  agnes(distancia, method = x)$ac
+}
+
+map_dbl(m, ac) 
+
+#####
